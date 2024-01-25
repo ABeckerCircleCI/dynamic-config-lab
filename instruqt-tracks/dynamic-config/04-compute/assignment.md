@@ -1,6 +1,6 @@
 ---
 slug: compute
-id: caw8pdvqwkjd
+id: xhkdy1lsmrwj
 type: challenge
 title: Compute Architectures on CircleCI
 teaser: Dive into the world of resource classes, compute architectures, and secondary

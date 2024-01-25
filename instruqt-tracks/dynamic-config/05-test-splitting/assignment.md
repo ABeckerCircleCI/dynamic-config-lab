@@ -1,6 +1,6 @@
 ---
 slug: test-splitting
-id: 7pgnawnkwegk
+id: cxgq2emsleay
 type: challenge
 title: Implementing Basic Test Splitting
 teaser: In this challenge, you will leverage the power of CircleCI's test splitting

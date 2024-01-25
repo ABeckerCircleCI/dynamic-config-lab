@@ -1,6 +1,6 @@
 ---
 slug: test-splitting-by-testname
-id: 37ofzrx6kxzy
+id: 9mwozab0wjah
 type: challenge
 title: Advanced Test Splitting by Test Names
 teaser: Dive deep into CircleCI's test splitting feature and learn how to optimize

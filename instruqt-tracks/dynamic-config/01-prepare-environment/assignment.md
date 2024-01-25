@@ -1,6 +1,6 @@
 ---
 slug: prepare-environment
-id: oawx5jtyasou
+id: fnsxokhjqba9
 type: challenge
 title: Preparing Your Environment
 teaser: We'll begin with setting up the environment you'll need to complete the hands-on
