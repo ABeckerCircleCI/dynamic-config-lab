@@ -1,0 +1,54 @@
+#!/bin/bash
+set -euxo pipefail
+
+#
+# This script runs when the platform check the challenge.
+#
+# The platform determines if the script was successful using the exit code of this
+# script. If the exit code is not 0, the script fails. 
+#
+
+
+if (! yq -e eval '.jobs.deploy' ~/project/.circleci/config.yml > /dev/null 2>&1); then
+  fail-message "The 'deploy' job must be included in the configuration."
+fi
+
+if (! yq -e eval '.jobs.deploy.executor.name == "go/default" and .jobs.deploy.executor.tag == "1.21"' ~/project/.circleci/config.yml > /dev/null 2>&1); then
+  fail-message "The 'deploy' job must have the executor configured as 'go/default' with tag '1.21'."
+fi
+
+if (! grep -q "MY_FIRST_VARIABLE: hello world!" ~/project/.circleci/config.yml); then
+  fail-message "The 'deploy' job must include the line 'MY_FIRST_VARIABLE: hello world!' under the 'environment' key."
+fi
+
+if (! grep -q '^\s*- run: echo \$MY_FIRST_VARIABLE' ~/project/.circleci/config.yml); then
+  fail-message "The specified 'run' step to echo MY_FIRST_VARIABLE is missing or incorrectly formatted in the 'deploy' job."
+fi
+
+if (! grep -q '^\s*- run: echo \$HELLO_LAB' ~/project/.circleci/config.yml); then
+  fail-message "The specified 'run' step to echo HELLO_LAB is missing or incorrectly formatted in the 'deploy' job."
+fi
+
+
+if (! yq -e eval '.workflows.build-test-deploy.jobs' ~/project/.circleci/config.yml | grep -q 'deploy'); then
+  fail-message "The 'deploy' job must be included under the 'build-test-deploy' workflow."
+fi
+
+if ! (grep -A 3 '\- deploy' ~/project/.circleci/config.yml | grep -q '\- test-split-by-testname'); then
+  fail-message "Make sure you have specified the requires array for your deploy job to require test-split-by-testname under your workflow." >&2
+  exit 1
+fi
+
+if ! (grep -A 3 '\- deploy' ~/project/.circleci/config.yml | grep -q '\- test-split-by-testname'); then
+  fail-message "Make sure you have specified the requires array for your deploy job to require test-split-by-testname under your workflow." >&2
+  exit 1
+fi
+
+if ! (grep -A 3 '\- deploy' ~/project/.circleci/config.yml | grep -q 'context:' && grep -A 1 'context:' ~/project/.circleci/config.yml | grep -q '\- my-lab-context'); then
+  fail-message "Make sure you have specified the context key with a value of '- my-lab-context' under your deploy job." >&2
+  exit 1
+fi
+
+if (! circleci --skip-update-check config validate ~/project/.circleci/config.yml); then 
+  fail-message "Uh oh - your config file isn't valid. Try running 'circleci config validate ~/project/.circleci/config.yml' in the shell to learn more."
+fi

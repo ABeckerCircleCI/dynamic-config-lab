@@ -1,0 +1,38 @@
+#!/bin/bash
+set -euxo pipefail
+
+#
+# This script runs when the platform check the challenge.
+#
+# The platform determines if the script was successful using the exit code of this
+# script. If the exit code is not 0, the script fails. 
+#
+
+
+if (! yq -e eval '.jobs.docker-build' ~/project/.circleci/config.yml > /dev/null 2>&1); then
+  fail-message "The 'docker-build' job is missing from the configuration."
+fi
+
+if (! yq -e eval '.jobs.docker-build.executor.name == "go/default" and .jobs.docker-build.executor.tag == "1.21"' ~/project/.circleci/config.yml > /dev/null 2>&1); then
+  fail-message "The 'docker-build' job must use the default go executor with a tag value of '1.21'."
+fi
+
+if (! yq -e eval '.jobs.docker-build.steps[] | select(. == "checkout")' ~/project/.circleci/config.yml > /dev/null); then
+  fail-message "Make sure you have added the checkout step to your docker-build job."
+fi
+
+if (! yq -e eval '.jobs.docker-build.steps[] | select(.setup_remote_docker.docker_layer_caching == true)' ~/project/.circleci/config.yml > /dev/null); then
+  fail-message "The 'setup_remote_docker' step with 'docker_layer_caching: true' is missing or not properly configured in the config."
+fi
+
+if [[ $(yq eval '.jobs.docker-build.steps' ~/project/.circleci/config.yml) != *'run: docker build'* ]]; then
+  fail-message "The 'docker-build' job must include the 'run: docker build .' step."
+fi
+
+if (! yq -e eval '.workflows.build-test-deploy.jobs' ~/project/.circleci/config.yml | grep -q 'docker-build'); then
+  fail-message "The 'docker-build' job must be included under the 'build-test-deploy' workflow."
+fi
+
+if (! circleci --skip-update-check config validate ~/project/.circleci/config.yml); then 
+  fail-message "Uh oh - your config file isn't valid. Try running 'circleci config validate ~/project/.circleci/config.yml' in the shell to learn more."
+fi

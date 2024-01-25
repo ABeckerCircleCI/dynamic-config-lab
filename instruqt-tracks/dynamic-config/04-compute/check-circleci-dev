@@ -1,0 +1,45 @@
+#!/bin/bash
+set -euxo pipefail
+
+#
+# This script runs when the platform check the challenge.
+#
+# The platform determines if the script was successful using the exit code of this
+# script. If the exit code is not 0, the script fails. 
+#
+
+if (! yq -e eval '.jobs.install-dependencies.resource_class == "small"' ~/project/.circleci/config.yml > /dev/null 2>&1); then
+  fail-message "The 'install-dependencies' job must be configured to use the small resource class."
+fi
+
+if (! yq -e eval '.jobs.install-dependencies-osx' ~/project/.circleci/config.yml > /dev/null); then
+  fail-message "Make sure you have added the install-dependencies-osx job."
+fi
+
+if (! yq -e eval '.jobs.install-dependencies-osx.macos.xcode == 14.2' ~/project/.circleci/config.yml > /dev/null); then
+  fail-message "The 'install-dependencies-osx' job must specify to use 'macos: xcode: 14.2'."
+fi
+
+if (! yq -e eval '.jobs.install-dependencies-osx.resource_class == "macos.x86.medium.gen2"' ~/project/.circleci/config.yml > /dev/null 2>&1); then
+  fail-message "The 'install-dependencies-osx' job must be configured to specify the resource_class: macos.x86.medium.gen2."
+fi
+
+if (! yq -e eval '.jobs.install-dependencies-osx.steps[0].run.name' ~/project/.circleci/config.yml | grep -i -q "install dependencies"); then
+  fail-message "The 'install-dependencies-osx' job must include a run step with 'name: Install dependencies'."
+fi
+
+if (! yq -e eval '.jobs.install-dependencies-osx.steps[0].run.command' ~/project/.circleci/config.yml > /dev/null 2>&1); then
+  fail-message "The 'install-dependencies-osx' job must include a command in the run step."
+fi
+
+if (!yq -e eval '(.jobs.test.docker[] | select(.image == "cimg/postgres:15.1" or .image == "cimg/postgres:15"))' ~/project/.circleci/config.yml > /dev/null 2>&1); then
+  fail-message "The 'test' job must be modified to include the specified postgres Docker image under the 'docker' key."
+fi
+
+if (! yq -e eval '.workflows.build-test-deploy.jobs[] == "install-dependencies-osx"' ~/project/.circleci/config.yml > /dev/null); then
+  fail-message "Make sure you have specified the install-dependencies-osx job to run under your workflow."
+fi
+
+if (! circleci --skip-update-check config validate ~/project/.circleci/config.yml); then 
+  fail-message "Uh oh - your config file isn't valid. Try running 'circleci config validate ~/project/.circleci/config.yml' in the shell to learn more."
+fi

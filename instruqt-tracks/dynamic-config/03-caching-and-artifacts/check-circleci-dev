@@ -1,0 +1,56 @@
+#!/bin/bash
+set -euxo pipefail
+
+#
+# This script runs when the platform check the challenge.
+#
+# The platform determines if the script was successful using the exit code of this
+# script. If the exit code is not 0, the script fails. 
+#
+
+
+if (! yq -e eval '.jobs.install-dependencies.steps[] | select(has("restore_cache"))' ~/project/.circleci/config.yml > /dev/null); then
+  fail-message "Make sure you have added a step for 'restore_cache' to your install-dependencies job."
+fi
+
+if (! yq -e eval '.jobs.install-dependencies.steps[] | select(.restore_cache? and .restore_cache.keys?)' ~/project/.circleci/config.yml > /dev/null); then
+  fail-message "Make sure you have added the 'keys' parameter for the 'restore_cache' step of your install-dependencies job."
+fi
+
+if ! (grep -A 5 'restore_cache:' ~/project/.circleci/config.yml | grep -q 'keys:' && grep -A 1 'keys:' ~/project/.circleci/config.yml | grep -q 'go-mod-{{ arch }}-{{ checksum "go.sum" }}'); then
+  fail-message "Make sure the 'keys' key for the 'restore_cache' step is properly configured under the 'install-dependencies' job. (The syntax is: '- go-mod-{{ arch }}-{{ checksum "go.sum" }}')" >&2
+  exit 1
+fi
+
+if (! yq -e eval '.jobs.install-dependencies.steps[] | select(has("save_cache"))' ~/project/.circleci/config.yml > /dev/null); then
+  fail-message "Make sure you have added a step for 'save_cache' to your install-dependencies job."
+fi
+
+if (! yq -e eval '.jobs.install-dependencies.steps[] | select(.save_cache? and .save_cache.key?)' ~/project/.circleci/config.yml > /dev/null); then
+  fail-message "Make sure you have added the 'key' parameter for the 'save_cache' step of your install-dependencies job."
+fi
+
+if ! (grep -A 3 'save_cache:' ~/project/.circleci/config.yml | grep -q 'key: go-mod-{{ arch }}-{{ checksum "go.sum" }}'); then
+  fail-message "Make sure the 'key' configuration under 'save_cache' in the 'install-dependencies' job is properly set. (The syntax is: '- go-mod-{{ arch }}-{{ checksum "go.sum" }}')" >&2
+  exit 1
+fi
+
+if (! yq -e eval '.jobs.install-dependencies.steps[] | select(.save_cache? and .save_cache.paths[] == "/home/circleci/go/pkg/mod")' ~/project/.circleci/config.yml > /dev/null); then
+  fail-message "Make sure you have defined the paths parameter for your save_cache job as '/home/circleci/go/pkg/mod'."
+fi
+
+if (! yq -e eval '.jobs.install-dependencies.steps += [ "persist_to_workspace", "root: ~/", "paths: - project", "     - go/pkg/mod" ]' ~/project/.circleci/config.yml > /dev/null); then
+  fail-message "Make sure you have configured the persist_to_workspace step to include the root key set to ~/ and the paths key set to go/pkg/mod."
+fi
+ 
+if (! yq -e eval '.jobs.install-dependencies.steps[] | select(.persist_to_workspace.root == "~/") | select(.persist_to_workspace.paths[] == "project" and .persist_to_workspace.paths[] == "go/pkg/mod")' ~/project/.circleci/config.yml > /dev/null); then
+  fail-message "Make sure you have added the persist_to_workspace step to your install-dependencies job, and set the root key to '~/' and specified the paths 'project' and 'go/pkg/mod'."
+fi
+
+if (! yq -e eval '.jobs.test | select(.steps[].run == "gotestsum --junitfile report.xml" and .steps[].store_test_results?.path == "report.xml" and .steps[].store_artifacts?.path == "report.xml")' ~/project/.circleci/config.yml > /dev/null); then
+  fail-message "Take another look at your tests job. Make sure you have added the 'store_test_results' and 'store_artifacts' keys and specified the path for both as 'report.xml'."
+fi
+
+if (! circleci --skip-update-check config validate ~/project/.circleci/config.yml); then 
+  fail-message "Uh oh - your config file isn't valid. Try running 'circleci config validate ~/project/.circleci/config.yml' in the shell to learn more."
+fi

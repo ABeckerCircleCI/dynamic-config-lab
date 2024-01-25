@@ -1,0 +1,50 @@
+#!/usr/bin/env python3
+
+solution = """
+version: 2.1
+
+jobs:
+  install-dependencies:
+    docker:
+      - image: cimg/go:1.21
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - go-mod-{{ arch }}-{{ checksum "go.sum" }}
+      - run: go mod download
+      - save_cache:
+          key: go-mod-{{ arch }}-{{ checksum "go.sum" }}
+          paths:
+            - /home/circleci/go/pkg/mod
+      - persist_to_workspace:
+          root: ~/
+          paths:
+            - project
+            - go/pkg/mod
+
+  test:
+    docker:
+      - image: cimg/go:1.21
+    steps:
+      - attach_workspace:
+          at: ~/
+      # Run the test suite, saving a junit report in the process
+      - run: gotestsum --junitfile report.xml
+      - store_test_results:
+          path: report.xml
+      - store_artifacts:
+          path: report.xml
+
+workflows:
+  build-test-deploy:
+    jobs:
+      - install-dependencies
+      - test:
+          requires:
+            - install-dependencies
+"""
+
+config_file_path = "/root/project/.circleci/config.yml"
+f = open(config_file_path, "w")
+f.write(solution)

@@ -1,0 +1,76 @@
+#!/bin/bash
+set -euxo pipefail
+
+#
+# This script runs when the platform check the challenge.
+#
+# The platform determines if the script was successful using the exit code of this
+# script. If the exit code is not 0, the script fails. 
+#
+
+
+if (! yq -e eval '.jobs.install-dependencies' ~/project/.circleci/config.yml > /dev/null); then
+  fail-message "Make sure you have added the install-dependencies job."
+fi
+
+if (! yq -e eval '.jobs.install-dependencies.docker[0].image == "cimg/go:1.21"' ~/project/.circleci/config.yml > /dev/null); then
+  fail-message "Make sure you have specified the Docker image 'cimg/go:1.21' for your install-dependencies job."
+fi
+
+if (! yq -e eval '.jobs.install-dependencies.steps[] | select(. == "checkout")' ~/project/.circleci/config.yml > /dev/null); then
+  fail-message "Make sure you have added the checkout step to your install-dependencies job."
+fi
+
+if (! yq -e eval '.jobs.install-dependencies.steps[] | select(.run == "go mod download")' ~/project/.circleci/config.yml > /dev/null); then
+  fail-message "Make sure you have added a 'run' step for your install-dependencies job which includes 'go mod download'."
+fi
+
+if (! yq -e eval '.jobs.install-dependencies.steps[] | select(has("persist_to_workspace"))' ~/project/.circleci/config.yml > /dev/null); then
+  fail-message "Make sure you have added a step for 'persist_to_workspace'."
+fi
+
+if (! yq -e eval '.jobs.install-dependencies.steps[] | select(has("persist_to_workspace") and .persist_to_workspace.root == "~/")' ~/project/.circleci/config.yml > /dev/null); then
+  fail-message "Make sure you have added the root key for the persist_to_workspace step on your install-dependencies job and set the value to ~/."
+fi
+
+if ! (yq -e eval '.jobs.install-dependencies.steps[]
+  | select(.persist_to_workspace.paths[] == "project" and .persist_to_workspace.paths[] == "go/pkg/mod")' ~/project/.circleci/config.yml > /dev/null); then
+  fail-message "Make sure you have added 'paths' to the 'persist_to_workspace' step with values of 'project' and 'go/pkg/mod'."
+fi
+ 
+if (! yq -e eval '.jobs.test' ~/project/.circleci/config.yml > /dev/null); then
+  fail-message "Make sure you have added the test job."
+fi
+
+if (! yq -e eval '.jobs.test.docker[0].image == "cimg/go:1.21"' ~/project/.circleci/config.yml > /dev/null); then
+  fail-message "Make sure you have specified the Docker image 'cimg/go:1.21' for your test job."
+fi
+
+if (! yq -e eval '.jobs.test.steps[] | select(has("attach_workspace"))' ~/project/.circleci/config.yml > /dev/null); then
+  fail-message "Make sure you have added the attach_workspace step for your test job."
+fi
+
+if (! yq -e eval '.jobs.test.steps[] | select(has("attach_workspace") and .attach_workspace.at == "~/")' ~/project/.circleci/config.yml > /dev/null); then
+  fail-message "Make sure you have added the at key for the attach_workspace step on your test job and set the value to ~/."
+fi
+
+if (! yq -e eval '.jobs.test.steps[] | select(.run == "gotestsum --junitfile report.xml")' ~/project/.circleci/config.yml > /dev/null); then
+  fail-message "Make sure you have added a step to run gotestsum for your tests job, and set it to ouput a junitfile named report.xml"
+fi
+
+if (! yq -e eval '.workflows.build-test-deploy' ~/project/.circleci/config.yml > /dev/null 2>&1); then
+  fail-message "Make sure you have created a workflow named build-test-deploy."
+fi
+
+if (! yq -e eval '.workflows.build-test-deploy.jobs[0] == "install-dependencies" and .workflows.build-test-deploy.jobs[1] | has("test")' ~/project/.circleci/config.yml > /dev/null); then
+  fail-message "Make sure you have specified the install-dependencies and test jobs to run under your workflow (in that order)"
+fi
+
+if ! (grep -A 3 '\- test' ~/project/.circleci/config.yml | grep -q '\- install-dependencies'); then
+  fail-message "Make sure you have specified the requires array for your test job to require install-dependencies under your workflow." >&2
+  exit 1
+fi
+
+if (! circleci --skip-update-check config validate ~/project/.circleci/config.yml); then 
+  fail-message "Uh oh - your config file isn't valid. Try running 'circleci config validate ~/project/.circleci/config.yml' in the shell to learn more."
+fi

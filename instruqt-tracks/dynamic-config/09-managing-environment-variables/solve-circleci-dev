@@ -1,0 +1,102 @@
+#!/usr/bin/env python3
+
+solution = """
+version: 2.1
+
+orbs:
+  go: circleci/go@1.9.0
+
+jobs:
+  install-dependencies:
+    executor:
+      name: go/default
+      tag: '1.21'
+    steps:
+      - checkout
+      - go/mod-download-cached
+      - persist_to_workspace:
+          root: ~/
+          paths:
+            - project
+            - go/pkg/mod
+
+  test:
+    executor:
+      name: go/default
+      tag: '1.21'
+    steps:
+      - attach_workspace:
+          at: ~/
+      # Run the test suite, saving a junit report in the process
+      - run: gotestsum --junitfile report.xml
+      - store_test_results:
+          path: report.xml
+      - store_artifacts:
+          path: report.xml
+
+  test-split-by-filename:
+    executor:
+      name: go/default
+      tag: '1.21'
+    parallelism: 2
+    steps:
+      - attach_workspace:
+          at: ~/
+      - run: |
+          TESTS=$(circleci tests glob *_test.go | circleci tests split)
+          gotestsum --junitfile report.xml $TESTS
+      - store_test_results:
+          path: report.xml
+      - store_artifacts:
+          path: report.xml
+
+  test-split-by-testname:
+    executor:
+      name: go/default
+      tag: '1.21'
+    parallelism: 2
+    steps:
+      - attach_workspace:
+          at: ~/
+      - run: |
+          TESTS_TO_RUN=$(./get-test-names.sh | circleci tests split --split-by timings --timings-type testname)
+          LIST_OF_TESTS=$(echo $TESTS_TO_RUN | tr ' ' '|')
+          gotestsum --junitfile report.xml -- -run "^($LIST_OF_TESTS)$"
+      - store_test_results:
+          path: report.xml
+      - store_artifacts:
+          path: report.xml
+
+  deploy:
+    executor:
+      name: go/default
+      tag: '1.21'
+    environment:
+      MY_FIRST_VARIABLE: hello world!
+    steps:
+      - run: echo $MY_FIRST_VARIABLE
+      - run: echo $HELLO_LAB
+
+workflows:
+  build-test-deploy:
+    jobs:
+      - install-dependencies
+      - test:
+          requires:
+            - install-dependencies
+      - test-split-by-filename:
+          requires:
+            - install-dependencies
+      - test-split-by-testname:
+          requires:
+            - install-dependencies
+      - deploy:
+          requires:
+            - test-split-by-testname
+          context:
+            - my-lab-context
+"""
+
+config_file_path = "/root/project/.circleci/config.yml"
+f = open(config_file_path, "w")
+f.write(solution)

@@ -1,0 +1,54 @@
+#!/bin/bash
+set -euxo pipefail
+
+#
+# This script runs when the platform check the challenge.
+#
+# The platform determines if the script was successful using the exit code of this
+# script. If the exit code is not 0, the script fails. 
+#
+
+
+if (! yq -e eval '.jobs.test-split-by-testname' ~/project/.circleci/config.yml > /dev/null); then
+  fail-message "Make sure you have added the test-split-by-testname job."
+fi
+
+if (! yq -e eval '.jobs.test-split-by-testname.docker[0].image == "cimg/go:1.21"' ~/project/.circleci/config.yml > /dev/null); then
+  fail-message "Make sure you have specified the Docker image 'cimg/go:1.21' for your test-split-by-testname job."
+fi
+
+if (! yq -e eval '.jobs.test-split-by-testname.parallelism == "2"' ~/project/.circleci/config.yml > /dev/null); then
+  fail-message "Make sure you have the parallelism key to a value of '2' for your test-split-by-testname job."
+fi
+
+if (! yq -e eval '.jobs.test-split-by-testname.steps[] | select(.attach_workspace.at == "~/")' ~/project/.circleci/config.yml > /dev/null); then
+  fail-message "Make sure you have added the attach_workspace step to your test-split-by-testname, and set the at key to '~/'."
+fi
+
+if ! (yq -e eval '.jobs.test-split-by-testname.steps[] | select(.run | contains("TESTS_TO_RUN=$(./get-test-names.sh | circleci tests split --split-by timings --timings-type testname)"))' ~/project/.circleci/config.yml >/dev/null); then
+  fail-message "Make sure you have properly configured the 'run' step of your test-split-by-testname job. The command should be as follows: 'TESTS_TO_RUN=\$\(./get-test-names.sh \| circleci tests split --split-by timings --timings-type testname\)'"
+fi
+
+if ! grep -q "LIST_OF_TESTS=\$(echo \$TESTS_TO_RUN | tr ' ' '|')" ~/project/.circleci/config.yml ; then
+  fail-message "Make sure you have properly configured the third line (including the first line being just | ) of the 'run' step of your test-split-by-testname job. The command to define LIST_OF_TESTS should be in the assignment page."
+fi
+
+if ! grep -q 'gotestsum --junitfile report\.xml -- -run "^($LIST_OF_TESTS)$"' ~/project/.circleci/config.yml; then
+  fail-message "Make sure you have properly configured the 'run' step of your test-split-by-testname job. The final line should include 'gotestsum --junitfile report.xml -- -run' followed by the command assigned to the LIST_OF_TESTS variable."
+fi
+
+if (! yq -e eval '.jobs.test-split-by-testname | select(.steps[].store_test_results?.path == "report.xml" and .steps[].store_artifacts?.path == "report.xml")' ~/project/.circleci/config.yml > /dev/null); then
+  fail-message "Take another look at your test-split-by-testname job. Make sure you have added the 'store_test_results' and 'store_artifacts' steps and specified the path for both as 'report.xml'."
+fi
+
+if (! yq -e eval '.workflows.build-test-deploy.jobs[] | has("test-split-by-testname")' ~/project/.circleci/config.yml > /dev/null); then
+  fail-message "Make sure you have specified the test-split-by-testname job to run under your workflow."
+fi
+
+if ! (grep -A 3 '\- test-split-by-testname' ~/project/.circleci/config.yml | grep -q '\- install-dependencies'); then
+  fail-message "Make sure you have specified the requires array to require install-dependencies for your test-split-by-testname job under your workflow." 
+fi
+
+if (! circleci --skip-update-check config validate ~/project/.circleci/config.yml); then 
+  fail-message "Uh oh - your config file isn't valid. Try running 'circleci config validate ~/project/.circleci/config.yml' in the shell to learn more."
+fi

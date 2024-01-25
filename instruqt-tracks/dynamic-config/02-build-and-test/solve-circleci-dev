@@ -1,0 +1,39 @@
+#!/usr/bin/env python3
+
+solution = """
+version: 2.1
+
+jobs:
+  install-dependencies:
+    docker:
+      - image: cimg/go:1.21
+    steps:
+      - checkout
+      - run: go mod download
+      - persist_to_workspace:
+          root: ~/
+          paths:
+            - project
+            - go/pkg/mod
+
+  test:
+    docker:
+      - image: cimg/go:1.21
+    steps:
+      - attach_workspace:
+          at: ~/
+      - run: gotestsum --junitfile report.xml
+
+workflows:
+  build-test-deploy:
+    jobs:
+      - install-dependencies
+      - test:
+          requires:
+            - install-dependencies
+
+"""
+
+config_file_path = "/root/project/.circleci/config.yml"
+f = open(config_file_path, "w")
+f.write(solution)

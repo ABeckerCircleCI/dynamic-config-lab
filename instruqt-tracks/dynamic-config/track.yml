@@ -1,0 +1,16 @@
+slug: dynamic-config
+id: 4x0ovfgwbhrp
+title: CircleCI Dynamic Configuration
+description: TODO
+icon: https://cdn.instruqt.com/assets/templates/docker.png
+tags: []
+owner: circleci
+developers:
+- aaron.becker@circleci.com
+lab_config:
+  overlay: false
+  width: 33
+  position: right
+  feedback_recap_enabled: true
+  loadingMessages: true
+checksum: "1452792195311452123"
