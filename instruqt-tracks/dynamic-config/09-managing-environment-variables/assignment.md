@@ -1,6 +1,6 @@
 ---
 slug: managing-environment-variables
-id: jr5mfqqr8jam
+id: relpxlr2q3y6
 type: challenge
 title: Managing environment variables
 teaser: Learn how to manage and utilize environment variables.

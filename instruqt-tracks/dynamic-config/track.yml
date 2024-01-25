@@ -1,16 +1,20 @@
-slug: dynamic-config
-id: 4x0ovfgwbhrp
-title: CircleCI Dynamic Configuration
+slug: dynamic-config-dev
+id: nva51vulwwu7
+title: DEV - CircleCI Dynamic Configuration
 description: TODO
 icon: https://cdn.instruqt.com/assets/templates/docker.png
-tags: []
+tags:
+- dev
 owner: circleci
 developers:
 - aaron.becker@circleci.com
+maintenance: true
+idle_timeout: 300
+timelimit: 1200
 lab_config:
   overlay: false
   width: 33
   position: right
   feedback_recap_enabled: true
   loadingMessages: true
-checksum: "1452792195311452123"
+checksum: "15447845745171677870"

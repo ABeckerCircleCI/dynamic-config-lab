@@ -1,6 +1,6 @@
 ---
 slug: using-orbs
-id: ejbe6nl9chqi
+id: vxcg852dendf
 type: challenge
 title: Simplifying the configuration with the Go orb
 teaser: Learn how to optimize your CircleCI workflows by using the Go orb to replace
